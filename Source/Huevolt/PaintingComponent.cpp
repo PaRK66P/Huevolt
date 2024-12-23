@@ -11,6 +11,8 @@
 #include "Engine\StaticMesh.h"
 #include "Engine\StaticMeshActor.h"
 
+#include "Kismet/GameplayStatics.h"         // For GameplayStatics and line tracing
+
 
 // Sets default values for this component's properties
 UPaintingComponent::UPaintingComponent()
@@ -19,44 +21,92 @@ UPaintingComponent::UPaintingComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
 
-	//Render target
-	RenderTarget = NewObject<UTextureRenderTarget2D>();
-
-	RenderTarget->InitAutoFormat(1024, 1024);
-	RenderTarget->RenderTargetFormat = RTF_R16f;
-	RenderTarget->ClearColor = FColor::Black;
-	RenderTarget->bAutoGenerateMips = false;
-	UKismetRenderingLibrary::ClearRenderTarget2D(this, RenderTarget, FColor::Black);
+	float SceneCaptureOrthoWidth = 500.f;
 
 	//Scene capture
 	/* Consider using a custom depth/stencil mask but be wary of performance, already using another render for each object
 	*/
-	if (SceneCapture) {
-		SceneCapture->ProjectionType = ECameraProjectionMode::Orthographic;
-		SceneCapture->OrthoWidth = SceneCaptureOrthoWidth;
-		SceneCapture->AutoPlaneShift = false;
-		SceneCapture->TextureTarget = RenderTarget;
-		SceneCapture->CompositeMode = ESceneCaptureCompositeMode::SCCM_Additive;
-		SceneCapture->bCaptureEveryFrame = false;
-		SceneCapture->bCaptureOnMovement = false;
-		SceneCapture->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, 200.f), FRotator(0.0f, -90.0f, -90.0f));
+	SceneCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Scene Capture Component Code"));
+	if (GetOwner()) {
+		SceneCapture->SetupAttachment(GetOwner()->GetRootComponent());
 	}
+	SceneCapture->ProjectionType = ECameraProjectionMode::Orthographic;
+	SceneCapture->OrthoWidth = SceneCaptureOrthoWidth;
+	SceneCapture->AutoPlaneShift = false;
+	SceneCapture->TextureTarget = RenderTarget;
+	SceneCapture->CompositeMode = ESceneCaptureCompositeMode::SCCM_Additive;
+	SceneCapture->bCaptureEveryFrame = false;
+	SceneCapture->bCaptureOnMovement = false;
+	SceneCapture->SetWorldLocationAndRotation(FVector(PaintRoomPosition.X, PaintRoomPosition.Y, PaintRoomPosition.Z + 200.f), FRotator(-90.f, -90.f, 0.f));
 
-	// Unwrap material
-	if (UnwrapMaterial) {
-		UnwrapMaterialInstance = UMaterialInstanceDynamic::Create(UnwrapMaterial, this);
-		UnwrapMaterialInstance->SetScalarParameterValue(TEXT("CaptureSize"), SceneCaptureOrthoWidth);
-		UnwrapMaterialInstance->SetVectorParameterValue(TEXT("UnwrapLocation"), UnwrapLocation);
-	}
+
 }
 
 
 // Called when the game starts
 void UPaintingComponent::BeginPlay()
 {
+	float SceneCaptureOrthoWidth = 500.f;
+
+	//SceneCapture->SetWorldLocationAndRotation(FVector(PaintRoomPosition.X, PaintRoomPosition.Y, PaintRoomPosition.Z + 200.f), FRotator(-90.f, -90.f, 0.f));
+
 	Super::BeginPlay();
 
+	if (!RenderTarget) {
+		RenderTarget = NewObject<UTextureRenderTarget2D>();
+		RenderTarget->InitAutoFormat(1024, 1024);
+		RenderTarget->RenderTargetFormat = RTF_R16f;
+		RenderTarget->ClearColor = FColor::Black;
+		RenderTarget->bAutoGenerateMips = false;
+		UKismetRenderingLibrary::ClearRenderTarget2D(this, RenderTarget, FColor::Black);
+
+		SceneCapture->TextureTarget = RenderTarget;
+	}
+
+	// Unwrap material
+	if (UnwrapMaterial) {
+		if (!UnwrapMaterialInstance) {
+			UnwrapMaterialInstance = UMaterialInstanceDynamic::Create(UnwrapMaterial, this);
+			UnwrapMaterialInstance->SetScalarParameterValue(TEXT("CaptureSize"), SceneCaptureOrthoWidth);
+			UnwrapMaterialInstance->SetVectorParameterValue(TEXT("UnwrapLocation"), PaintRoomPosition);
+		}
+	}
+
+	if (BaseMaterial) {
+		if (!BaseMaterialInstance) {
+			BaseMaterialInstance = UMaterialInstanceDynamic::Create(BaseMaterial, this);
+			BaseMaterialInstance->SetVectorParameterValue(TEXT("BaseColour"), BaseColour);
+			BaseMaterialInstance->SetVectorParameterValue(TEXT("PaintColour"), PaintColour);
+			BaseMaterialInstance->SetTextureParameterValue(TEXT("PaintCapture"), RenderTarget);
+
+			UStaticMeshComponent* MeshToPaint = GetOwner()->GetComponentByClass<UStaticMeshComponent>();
+			MeshToPaint->SetMaterial(0, BaseMaterialInstance);
+		}
+	}
+	
 }
+
+void UPaintingComponent::EndPlay(EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	if (RenderTarget) {
+		RenderTarget->ConditionalBeginDestroy();
+		RenderTarget = nullptr;
+	}
+
+	if (UnwrapMaterialInstance) {
+		UnwrapMaterialInstance->ConditionalBeginDestroy();
+		UnwrapMaterialInstance = nullptr;
+	}
+
+	if (BaseMaterialInstance) {
+		BaseMaterialInstance->ConditionalBeginDestroy();
+		BaseMaterialInstance = nullptr;
+	}
+}
+
+
 
 
 // Called every frame
@@ -69,8 +119,13 @@ void UPaintingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 void UPaintingComponent::PaintActor(FVector HitLocation, float BrushRadius)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Green, TEXT("Painting"));
 
+	//// Painting
+
+	FVector originalPosition = GetOwner()->GetActorLocation();
+
+	GetOwner()->SetActorLocation(PaintRoomPosition);
+	SceneCapture->SetWorldLocationAndRotation(FVector(PaintRoomPosition.X, PaintRoomPosition.Y, PaintRoomPosition.Z + 200.f), FRotator(-90.f, -90.f, 0.f));
 
 	UStaticMeshComponent* MeshToPaint = GetOwner()->GetComponentByClass<UStaticMeshComponent>();
 	if (!MeshToPaint) {
@@ -78,22 +133,26 @@ void UPaintingComponent::PaintActor(FVector HitLocation, float BrushRadius)
 		return;
 	}
 
-	if (!UnwrapMaterial) {
+	if (!UnwrapMaterialInstance) {
 		GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Red, FString::Printf(TEXT("%s does not reference the parent unwrap material"), *GetOwner()->GetName()));
 		return;
 	}
 
 	UMaterialInterface* OriginalMaterial = MeshToPaint->GetMaterial(0);
 
-	UnwrapMaterialInstance->SetVectorParameterValue(TEXT("HitLocation"), HitLocation);
-	UnwrapMaterialInstance->SetScalarParameterValue(TEXT("BrushRadius"), BrushRadius);
-
 	MeshToPaint->SetMaterial(0, UnwrapMaterialInstance);
 
-	
+	//GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Blue, FString::Printf(TEXT("UV position: %f, %f"), uvHitLocation.X, uvHitLocation.Y));
 
-	//After Testing
-	/*SceneCapture->CaptureScene();
-	MeshToPaint->SetMaterial(0, OriginalMaterial);*/
+
+	UnwrapMaterialInstance->SetVectorParameterValue(TEXT("HitLocation"), HitLocation + PaintRoomPosition - originalPosition);
+	UnwrapMaterialInstance->SetScalarParameterValue(TEXT("BrushRadius"), 10);
+
+	SceneCapture->CaptureScene();
+	MeshToPaint->SetMaterial(0, OriginalMaterial);
+
+	GetOwner()->SetActorLocation(originalPosition);
 }
+
+
 

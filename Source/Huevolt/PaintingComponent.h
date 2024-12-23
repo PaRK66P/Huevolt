@@ -15,10 +15,28 @@ class HUEVOLT_API UPaintingComponent : public UActorComponent
 
 public:	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
+	FVector PaintRoomPosition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
+	FVector PaintOffsetPosition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
 	UMaterial* UnwrapMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
-	USceneCaptureComponent2D* SceneCaptureComponent;
+	UMaterial* BaseMaterial;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
+	UTextureRenderTarget2D* RenderTarget;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
+	USceneCaptureComponent2D* SceneCapture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
+	FColor BaseColour;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Painting, meta = (AllowPrivateAccess = "true"))
+	FColor PaintColour;
 
 	// Sets default values for this component's properties
 	UPaintingComponent();
@@ -26,15 +44,13 @@ public:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 
+	UPROPERTY()
 	UMaterialInstanceDynamic* UnwrapMaterialInstance;
+	UPROPERTY()
+	UMaterialInstanceDynamic* BaseMaterialInstance;
 
-	UTextureRenderTarget2D* RenderTarget;
-
-	USceneCaptureComponent2D* SceneCapture;
-
-	float SceneCaptureOrthoWidth = 500.f;
-	FVector UnwrapLocation = FVector::Zero();
 
 public:	
 	// Called every frame

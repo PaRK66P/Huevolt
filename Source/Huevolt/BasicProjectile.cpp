@@ -57,10 +57,12 @@ void ABasicProjectile::Tick(float DeltaTime)
 void ABasicProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	if (UPaintingComponent* PaintComponent = Hit.GetActor()->FindComponentByClass<UPaintingComponent>()) {
-		PaintComponent->PaintActor(Hit.Location, 10.f);
+		PaintComponent->PaintActor(Hit.ImpactPoint, 10.f);
 	}
 
-	GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Yellow, OtherComp->GetOwner()->GetName());
+
+	//DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10, 16, FColor::Blue, true);
+	//GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Yellow, OtherComp->GetOwner()->GetName());
 	Destroy();
 }
 
