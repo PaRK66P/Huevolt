@@ -26,6 +26,8 @@ public:
 	// Sets default values for this actor's properties
 	ABasicProjectile();
 
+	FVector ProjectileColour = FVector(0.f, 0.f, 0.f);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
