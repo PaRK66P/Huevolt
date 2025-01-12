@@ -41,7 +41,9 @@ protected:
 	UMaterial* UnwrapMaterial;
 	UMaterial* BaseMaterial;
 
+	UPROPERTY()
 	UMaterialInstanceDynamic* UnwrapMaterialInstance;
+	UPROPERTY()
 	UMaterialInstanceDynamic* BaseMaterialInstance;
 
 	void ChangeRenderTarget(UTextureRenderTarget2D* renderTarget);

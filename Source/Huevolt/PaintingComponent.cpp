@@ -16,6 +16,10 @@
 
 #include "Kismet/GameplayStatics.h"         // For GameplayStatics and line tracing
 
+#include "Async\Async.h"
+#include "RenderCommandFence.h"
+#include "Runtime/RenderCore/Public/RenderingThread.h"
+
 
 // Sets default values for this component's properties
 UPaintingComponent::UPaintingComponent()
@@ -183,20 +187,28 @@ void UPaintingComponent::PaintActor(FVector HitLocation, float BrushRadius, FVec
 		return;
 	}
 
-	UMaterialInterface* OriginalMaterial = MeshToPaint->GetMaterial(0);
 
 	FVector HitDrawLocation = HitLocation + PaintRoomPosition - originalPosition;
 
+
 	UnwrapMaterialInstance->UMaterialInstanceDynamic::SetVectorParameterValue(TEXT("HitLocation"), HitDrawLocation);
 	UnwrapMaterialInstance->UMaterialInstanceDynamic::SetScalarParameterValue(TEXT("BrushRadius"), BrushRadius);
-
 	UnwrapMaterialInstance->UMaterialInstanceDynamic::SetVectorParameterValue(TEXT("PaintColour"), projectilePaintColour);
 
 	MeshToPaint->SetMaterial(0, UnwrapMaterialInstance);
 
 	SceneCapture->CaptureScene();
 
-	MeshToPaint->SetMaterial(0, OriginalMaterial);
+	MeshToPaint->SetMaterial(0, BaseMaterialInstance);
+
+	/*AsyncTask(ENamedThreads::GameThread, [this, HitDrawLocation, BrushRadius, projectilePaintColour, MeshToPaint]() {
+
+		FRenderCommandFence RenderFence;
+
+		
+
+		});*/
+	
 
 	GetOwner()->SetActorLocation(originalPosition);
 	//GetOwner()->SetActorScale3D(originalScale);
