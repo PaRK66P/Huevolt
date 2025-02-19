@@ -40,7 +40,6 @@ UPaintingComponent::UPaintingComponent()
 	SceneCapture->CompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
 	SceneCapture->bCaptureEveryFrame = false;
 	SceneCapture->bCaptureOnMovement = false;
-	//SceneCapture->SetWorldLocationAndRotation(FVector(PaintRoomPosition.X, PaintRoomPosition.Y, PaintRoomPosition.Z + 200.f), FRotator(-90.f, -90.f, 0.f));
 	SceneCapture->SetWorldRotation(FRotator(-90.f, -90.f, 0.f));
 
 
@@ -151,6 +150,7 @@ void UPaintingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 void UPaintingComponent::PaintActor(FVector HitLocation, float BrushRadius, FVector projectilePaintColour)
 {
+	// Swaps render target
 	if (UsingFirstRenderTarget) {
 		PaintRoomActor->SetPreviousTexture(FirstRenderTarget);
 		ChangeRenderTarget(SecondRenderTarget);
@@ -164,13 +164,10 @@ void UPaintingComponent::PaintActor(FVector HitLocation, float BrushRadius, FVec
 
 	//// Painting
 
+	// Moves to the paint room
 	FVector originalPosition = GetOwner()->GetActorLocation();
-	//FVector originalScale = GetOwner()->GetActorScale3D();
-	//FRotator originalRotation = GetOwner()->GetActorRotation();
 
 	GetOwner()->SetActorLocation(PaintRoomPosition);
-	//GetOwner()->SetActorScale3D(originalScale / (originalScale.X > originalScale.Y ? originalScale.X > originalScale.Z ? originalScale.X : originalScale.Z : originalScale.Y > originalScale.Z ? originalScale.Y : originalScale.Z));
-	//GetOwner()->SetActorRotation(FRotator::ZeroRotator);
 
 	SceneCapture->SetWorldLocation(FVector(PaintRoomPosition.X, PaintRoomPosition.Y, PaintRoomPosition.Z + 200.f));
 	SceneCapture->SetWorldRotation(FRotator(-90.f, -90.f, 0.f));
@@ -187,32 +184,21 @@ void UPaintingComponent::PaintActor(FVector HitLocation, float BrushRadius, FVec
 		return;
 	}
 
-
+	// Update unwrap material params
 	FVector HitDrawLocation = HitLocation + PaintRoomPosition - originalPosition;
-
 
 	UnwrapMaterialInstance->UMaterialInstanceDynamic::SetVectorParameterValue(TEXT("HitLocation"), HitDrawLocation);
 	UnwrapMaterialInstance->UMaterialInstanceDynamic::SetScalarParameterValue(TEXT("BrushRadius"), BrushRadius);
 	UnwrapMaterialInstance->UMaterialInstanceDynamic::SetVectorParameterValue(TEXT("PaintColour"), projectilePaintColour);
 
+	// Capture painted area
 	MeshToPaint->SetMaterial(0, UnwrapMaterialInstance);
 
 	SceneCapture->CaptureScene();
 
 	MeshToPaint->SetMaterial(0, BaseMaterialInstance);
 
-	/*AsyncTask(ENamedThreads::GameThread, [this, HitDrawLocation, BrushRadius, projectilePaintColour, MeshToPaint]() {
-
-		FRenderCommandFence RenderFence;
-
-		
-
-		});*/
-	
-
 	GetOwner()->SetActorLocation(originalPosition);
-	//GetOwner()->SetActorScale3D(originalScale);
-	//GetOwner()->SetActorRotation(originalRotation);
 }
 
 UTextureRenderTarget2D* UPaintingComponent::GetRenderTarget()
